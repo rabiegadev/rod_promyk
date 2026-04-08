@@ -1,0 +1,281 @@
+// ROD „Promyk” Przylep — model domenowy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TREASURER
+  PLOT_HOLDER
+}
+
+enum FeeCategory {
+  GENERAL
+  MEMBERSHIP
+  GARDEN
+  WATER_SETTLEMENT
+  WATER_PREPAY
+  WATER_CHARGE
+}
+
+enum DocumentKind {
+  REGULATION
+  STATUTE
+  OTHER
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  /// Unikalny login (np. działka-12) — głównie dla działkowców
+  login               String?   @unique
+  email               String?   @unique
+  emailVerified       DateTime?
+  passwordHash        String
+  name                String?
+  role                Role      @default(PLOT_HOLDER)
+  /// Po imporcie konta: wymuś podanie e-maila przy pierwszym logowaniu
+  mustSetEmailOnLogin Boolean   @default(false)
+
+  accountActive  Boolean   @default(true)
+  pzdMemberSince DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory     UserStatusHistory[] @relation("StatusSubject")
+  statusChangesMade UserStatusHistory[] @relation("StatusChanger")
+
+  plotAssignmentsAsHolder PlotAssignment[] @relation("AssignmentHolder")
+  plotAssignmentsAssigned PlotAssignment[] @relation("AssignmentBy")
+
+  announcements Announcement[] @relation("AnnouncementAuthor")
+  galleryItems  GalleryItem[]  @relation("GalleryAuthor")
+  sitePages     SitePage[]     @relation("SitePageUpdater")
+
+  feeLinesAsMember FeeLine[] @relation("FeeMember")
+  feeLinesCreated  FeeLine[] @relation("FeeCreator")
+  feeLinesPaidMark FeeLine[] @relation("FeePaidMarker")
+
+  chatThreads    ChatThread[]
+  chatMessages   ChatMessage[]
+
+  formalitiesUpdates Formalities[] @relation("FormalitiesUpdater")
+}
+
+/// Historia statusów konta i członkostwa PZD (prezes zmienia — zapisujemy okresy)
+model UserStatusHistory {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("StatusSubject", fields: [userId], references: [id], onDelete: Cascade)
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  accountActive  Boolean
+  pzdMemberSince DateTime?
+
+  note String?
+
+  changedById String
+  changedBy   User   @relation("StatusChanger", fields: [changedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, effectiveFrom])
+}
+
+model Plot {
+  id          String  @id @default(cuid())
+  number      String  @unique
+  areaSqm     Float?
+  description String?
+
+  availableForPurchase Boolean @default(false)
+  purchaseInfo         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments PlotAssignment[]
+  feeLines    FeeLine[]
+}
+
+model PlotAssignment {
+  id String @id @default(cuid())
+
+  plotId String
+  plot   Plot   @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("AssignmentHolder", fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+
+  assignedById String?
+  assignedBy   User?     @relation("AssignmentBy", fields: [assignedById], references: [id])
+
+  @@index([plotId])
+  @@index([userId])
+}
+
+model FeeLine {
+  id String @id @default(cuid())
+
+  plotId String?
+  plot   Plot?   @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  /// Składka członkowska itp. — powiązanie z użytkownikiem
+  userId String?
+  user   User?   @relation("FeeMember", fields: [userId], references: [id], onDelete: SetNull)
+
+  category FeeCategory
+  label    String
+  amount   Decimal     @db.Decimal(12, 2)
+  dueDate  DateTime?
+
+  isPaid Boolean   @default(false)
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation("FeeCreator", fields: [createdById], references: [id])
+
+  paidMarkedById String?
+  paidMarkedBy   User?   @relation("FeePaidMarker", fields: [paidMarkedById], references: [id])
+
+  @@index([plotId, isPaid])
+  @@index([userId, isPaid])
+  @@index([dueDate])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  publishedAt DateTime @default(now())
+  authorId    String
+  author      User     @relation("AnnouncementAuthor", fields: [authorId], references: [id])
+
+  @@index([publishedAt])
+}
+
+model GalleryItem {
+  id          String   @id @default(cuid())
+  imageUrl    String
+  caption     String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("GalleryAuthor", fields: [createdById], references: [id])
+
+  @@index([sortOrder])
+}
+
+/// Treści edytowalne przez admina (markdown)
+model SitePage {
+  slug      String   @id
+  title     String
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("SitePageUpdater", fields: [updatedById], references: [id])
+}
+
+model GardenEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @default("")
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+
+  @@index([startsAt])
+}
+
+model Training {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @default("")
+  startsAt    DateTime?
+  location    String?
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  title       String
+  description String @default("")
+  year        Int?
+}
+
+model Document {
+  id       String       @id @default(cuid())
+  title    String
+  kind     DocumentKind @default(OTHER)
+  fileUrl  String?
+  content  String?
+  sortOrder Int @default(0)
+}
+
+/// Dane „Formalności” — tylko dla zalogowanych działkowców (logika w aplikacji)
+model Formalities {
+  id String @id @default("default")
+
+  gardenBankAccount  String?
+  waterBankAccount   String?
+  otherAccountsNote  String?
+  contactPhone       String?
+  contactEmail       String?
+  extraMarkdown      String?
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("FormalitiesUpdater", fields: [updatedById], references: [id])
+}
+
+model BoardMember {
+  id        String  @id @default(cuid())
+  name      String
+  roleTitle String
+  phone     String?
+  email     String?
+  sortOrder Int     @default(0)
+}
+
+model ChatThread {
+  id String @id @default(cuid())
+
+  plotHolderId String
+  plotHolder   User   @relation(fields: [plotHolderId], references: [id], onDelete: Cascade)
+
+  lastMessageAt DateTime @default(now())
+
+  messages ChatMessage[]
+
+  @@unique([plotHolderId])
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+
+  threadId String
+  thread   ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  body   String
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+}
