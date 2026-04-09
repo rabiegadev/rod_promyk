@@ -14,7 +14,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       login: true,
       email: true,
       name: true,
-      role: true,
+      roles: { select: { role: true } },
       accountActive: true,
       pzdMemberSince: true,
     },

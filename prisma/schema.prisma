@@ -12,7 +12,6 @@ datasource db {
 enum Role {
   ADMIN
   TREASURER
-  PLOT_HOLDER
 }
 
 enum FeeCategory {
@@ -38,7 +37,6 @@ model User {
   emailVerified       DateTime?
   passwordHash        String
   name                String?
-  role                Role      @default(PLOT_HOLDER)
   /// Po imporcie konta: wymuś podanie e-maila przy pierwszym logowaniu
   mustSetEmailOnLogin Boolean   @default(false)
   /// Wymuś zmianę hasła po pierwszym logowaniu (np. przy prostym haśle startowym)
@@ -68,6 +66,19 @@ model User {
   chatMessages   ChatMessage[]
 
   formalitiesUpdates Formalities[] @relation("FormalitiesUpdater")
+  roles             UserRole[]
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, role])
+  @@index([role])
 }
 
 /// Historia statusów konta i członkostwa PZD (prezes zmienia — zapisujemy okresy)

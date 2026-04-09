@@ -18,8 +18,9 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const plotHolderIdParam = url.searchParams.get("plotHolderId");
+  const isAdmin = requireRoles(session, [Role.ADMIN]);
 
-  if (session.user.role === Role.ADMIN) {
+  if (isAdmin) {
     if (!plotHolderIdParam) {
       return Response.json({ error: "Podaj plotHolderId." }, { status: 400 });
     }
@@ -32,7 +33,10 @@ export async function GET(req: Request) {
     return Response.json({ messages: thread?.messages ?? [] });
   }
 
-  if (session.user.role !== Role.PLOT_HOLDER) return forbidden();
+  const isPlotHolder = (await prisma.plotAssignment.count({
+    where: { userId: session.user.id, unassignedAt: null },
+  })) > 0;
+  if (!isPlotHolder) return forbidden();
 
   const thread = await prisma.chatThread.findUnique({
     where: { plotHolderId: session.user.id },
@@ -64,8 +68,14 @@ export async function POST(req: Request) {
   if (!text) return Response.json({ error: "Pusta wiadomość." }, { status: 400 });
 
   const baseUrl = getPublicAppUrl();
+  const isAdmin = requireRoles(session, [Role.ADMIN]);
 
-  if (session.user.role === Role.PLOT_HOLDER) {
+  if (!isAdmin || !parsed.data.plotHolderId) {
+    const isPlotHolder = (await prisma.plotAssignment.count({
+      where: { userId: session.user.id, unassignedAt: null },
+    })) > 0;
+    if (!isPlotHolder) return forbidden();
+
     const thread =
       (await prisma.chatThread.findUnique({ where: { plotHolderId: session.user.id } })) ??
       (await prisma.chatThread.create({ data: { plotHolderId: session.user.id } }));
@@ -84,7 +94,7 @@ export async function POST(req: Request) {
     });
 
     const admins = await prisma.user.findMany({
-      where: { role: Role.ADMIN, email: { not: null } },
+      where: { email: { not: null }, roles: { some: { role: Role.ADMIN } } },
       select: { email: true },
     });
     const emails = admins.map((a) => a.email!).filter(Boolean);
@@ -98,7 +108,7 @@ export async function POST(req: Request) {
     return Response.json({ message: msg });
   }
 
-  if (!requireRoles(session, [Role.ADMIN])) return forbidden();
+  if (!isAdmin) return forbidden();
 
   const targetId = parsed.data.plotHolderId;
   if (!targetId) {

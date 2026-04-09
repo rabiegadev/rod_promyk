@@ -15,7 +15,8 @@ export function requireSession(session: Session | null): session is Session {
 
 export function requireRoles(session: Session | null, roles: Role[]) {
   if (!requireSession(session)) return false;
-  return roles.includes(session.user.role);
+  const current = session.user.roles ?? [];
+  return roles.some((role) => current.includes(role));
 }
 
 export function isAdmin(session: Session | null) {

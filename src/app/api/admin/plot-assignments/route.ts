@@ -44,6 +44,13 @@ export async function POST(req: Request) {
   }
 
   const { plotId, userId } = parsed.data;
+  const holder = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, accountActive: true },
+  });
+  if (!holder || !holder.accountActive) {
+    return Response.json({ error: "Nie znaleziono aktywnego użytkownika do przypisania." }, { status: 404 });
+  }
 
   const plot = await prisma.plot.findUnique({
     where: { id: plotId },

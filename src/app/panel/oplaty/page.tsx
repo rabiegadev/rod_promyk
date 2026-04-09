@@ -14,7 +14,8 @@ export default async function OplatyZarzadPage() {
     select: { mustSetEmailOnLogin: true, mustChangePassword: true },
   });
   if (dbUser?.mustSetEmailOnLogin || dbUser?.mustChangePassword) redirect("/panel");
-  if (session.user.role !== Role.ADMIN && session.user.role !== Role.TREASURER) {
+  const roles = session.user.roles ?? [];
+  if (!roles.includes(Role.ADMIN) && !roles.includes(Role.TREASURER)) {
     return (
       <p className="text-emerald-950/80">
         Dostęp tylko dla administratora i skarbnika.{" "}

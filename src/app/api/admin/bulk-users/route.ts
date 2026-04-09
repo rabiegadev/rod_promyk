@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
 import { z } from "zod";
 
 import { auth } from "@/auth";
-import { forbidden, requireRoles, unauthorized } from "@/lib/api-auth";
+import { forbidden, isAdmin, unauthorized } from "@/lib/api-auth";
 import { generateSimplePassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +15,7 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return unauthorized();
-  if (!requireRoles(session, [Role.ADMIN])) return forbidden();
+  if (!isAdmin(session)) return forbidden();
 
   let json: unknown;
   try {
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
         passwordHash,
         mustSetEmailOnLogin: true,
         mustChangePassword: true,
-        role: Role.PLOT_HOLDER,
         accountActive: true,
         name: `Działkowiec ${startIndex + i}`,
       },

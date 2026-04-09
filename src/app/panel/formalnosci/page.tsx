@@ -12,11 +12,16 @@ export default async function FormalnosciPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, mustSetEmailOnLogin: true, mustChangePassword: true },
+    select: {
+      mustSetEmailOnLogin: true,
+      mustChangePassword: true,
+      roles: { select: { role: true } },
+      _count: { select: { plotAssignmentsAsHolder: { where: { unassignedAt: null } } } },
+    },
   });
   if (user?.mustSetEmailOnLogin || user?.mustChangePassword) redirect("/panel");
 
-  const allowed = user?.role === Role.PLOT_HOLDER || user?.role === Role.ADMIN;
+  const allowed = user ? user.roles.some((r) => r.role === Role.ADMIN) || user._count.plotAssignmentsAsHolder > 0 : false;
   if (!allowed) {
     return (
       <p className="text-emerald-950/80">

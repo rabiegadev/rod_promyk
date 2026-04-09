@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
 
 export default async function MojeOplatyPage() {
   const session = await auth();
@@ -11,11 +10,16 @@ export default async function MojeOplatyPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, mustSetEmailOnLogin: true, mustChangePassword: true },
+    select: {
+      mustSetEmailOnLogin: true,
+      mustChangePassword: true,
+      _count: { select: { plotAssignmentsAsHolder: { where: { unassignedAt: null } } } },
+    },
   });
   if (user?.mustSetEmailOnLogin || user?.mustChangePassword) redirect("/panel");
 
-  if (user?.role !== Role.PLOT_HOLDER) {
+  const isPlotHolder = (user?._count.plotAssignmentsAsHolder ?? 0) > 0;
+  if (!isPlotHolder) {
     return <p className="text-emerald-950/80">Ta strona jest przeznaczona dla działkowców.</p>;
   }
 

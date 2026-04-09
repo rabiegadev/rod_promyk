@@ -22,23 +22,18 @@ type Holder = { id: string; login: string | null; name: string | null };
 export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders: Holder[] }) {
   const router = useRouter();
   const [plotId, setPlotId] = useState(plots[0]?.id ?? "");
-  const [userId, setUserId] = useState(holders[0]?.id ?? "");
+  const [userId, setUserId] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [newAllowsTwoOwners, setNewAllowsTwoOwners] = useState(false);
   const [newAvailableForPurchase, setNewAvailableForPurchase] = useState(false);
   const [newAreaSqm, setNewAreaSqm] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newPurchaseInfo, setNewPurchaseInfo] = useState("");
+  const [newOwner1Id, setNewOwner1Id] = useState("");
+  const [newOwner2Id, setNewOwner2Id] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [savePending, setSavePending] = useState<string | null>(null);
-
-  if (plots.length === 0) {
-    return <p className="text-sm text-emerald-900/70">Brak działek w bazie — dodaj je importem zbiorczym lub ręcznie.</p>;
-  }
-  if (holders.length === 0) {
-    return <p className="text-sm text-emerald-900/70">Brak kont działkowców — utwórz użytkowników (import lub ręcznie).</p>;
-  }
 
   async function assign(e: React.FormEvent) {
     e.preventDefault();
@@ -73,6 +68,15 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
   async function createPlot(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const assignUserIds = [newOwner1Id, newOwner2Id].filter(Boolean);
+    if (!newAllowsTwoOwners && assignUserIds.length > 1) {
+      setError("Ta działka jest w trybie 1 właściciela - wybierz maksymalnie jedną osobę.");
+      return;
+    }
+    if (assignUserIds.length === 2 && assignUserIds[0] === assignUserIds[1]) {
+      setError("Nie można przypisać tej samej osoby dwa razy.");
+      return;
+    }
     setPending(true);
     const res = await fetch("/api/admin/plots", {
       method: "POST",
@@ -84,6 +88,7 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
         areaSqm: newAreaSqm ? Number(newAreaSqm) : null,
         description: newDescription || null,
         purchaseInfo: newPurchaseInfo || null,
+        assignUserIds,
       }),
     });
     setPending(false);
@@ -98,6 +103,8 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
     setNewAreaSqm("");
     setNewDescription("");
     setNewPurchaseInfo("");
+    setNewOwner1Id("");
+    setNewOwner2Id("");
     router.refresh();
   }
 
@@ -149,6 +156,33 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
             value={newPurchaseInfo}
             onChange={(e) => setNewPurchaseInfo(e.target.value)}
           />
+          <select
+            className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
+            value={newOwner1Id}
+            onChange={(e) => setNewOwner1Id(e.target.value)}
+          >
+            <option value="">(opcjonalnie) przypisz działkowca #1</option>
+            {holders.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name ?? h.login ?? h.id}
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
+            value={newOwner2Id}
+            onChange={(e) => setNewOwner2Id(e.target.value)}
+            disabled={!newAllowsTwoOwners}
+          >
+            <option value="">
+              {newAllowsTwoOwners ? "(opcjonalnie) przypisz działkowca #2" : "Włącz 2 właścicieli aby przypisać #2"}
+            </option>
+            {holders.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name ?? h.login ?? h.id}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex flex-wrap gap-4">
           <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
@@ -172,6 +206,10 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
           {pending ? "Tworzę…" : "Utwórz działkę"}
         </button>
       </form>
+
+      {plots.length === 0 ? (
+        <p className="text-sm text-emerald-900/70">Brak działek w bazie - po utworzeniu pierwszej pojawi się tabela i panel przypisań.</p>
+      ) : null}
 
       <form onSubmit={assign} className="space-y-3 rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm">
         <h2 className="font-semibold text-emerald-950">Przypisz działkowca do działki</h2>
@@ -201,6 +239,7 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
             >
+              <option value="">Wybierz działkowca</option>
               {holders.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name ?? h.login ?? h.id}
@@ -209,17 +248,21 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
             </select>
           </div>
         </div>
+        {holders.length === 0 ? (
+          <p className="text-xs text-amber-800/90">Brak kont działkowców - utwórz użytkownika, aby przypisywać działki.</p>
+        ) : null}
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
         <button
           type="submit"
-          disabled={pending || !plotId || !userId}
+          disabled={pending || !plotId || !userId || plots.length === 0 || holders.length === 0}
           className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
           {pending ? "Zapisuję…" : "Przypisz"}
         </button>
       </form>
 
-      <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-lime-200/80 bg-white/90 shadow-sm [-webkit-overflow-scrolling:touch]">
+      {plots.length > 0 ? (
+        <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-lime-200/80 bg-white/90 shadow-sm [-webkit-overflow-scrolling:touch]">
         <table className="w-full min-w-[20rem] text-left text-sm md:min-w-0">
           <thead className="bg-lime-50/80 text-emerald-900">
             <tr>
@@ -265,7 +308,8 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
             })}
           </tbody>
         </table>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

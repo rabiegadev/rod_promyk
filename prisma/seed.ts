@@ -38,14 +38,19 @@ async function main() {
       email: process.env.ADMIN_SEED_EMAIL ?? "admin@example.local",
       passwordHash: hash,
       name: "Administrator",
-      role: Role.ADMIN,
+      roles: {
+        create: [{ role: Role.ADMIN }],
+      },
       mustSetEmailOnLogin: false,
       accountActive: true,
     },
     update: {
       passwordHash: hash,
-      role: Role.ADMIN,
       accountActive: true,
+      roles: {
+        deleteMany: {},
+        create: [{ role: Role.ADMIN }],
+      },
     },
   });
 

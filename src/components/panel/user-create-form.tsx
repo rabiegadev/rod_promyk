@@ -2,7 +2,7 @@
 
 import { Role } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type PlotOption = {
   id: string;
@@ -26,7 +26,7 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
   const [autoPassword, setAutoPassword] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Role>(Role.PLOT_HOLDER);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [accountActive, setAccountActive] = useState(true);
   const [pzdDate, setPzdDate] = useState("");
   const [plotId, setPlotId] = useState("");
@@ -35,14 +35,22 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
   const [ok, setOk] = useState<string | null>(null);
   const [createdCredentials, setCreatedCredentials] = useState<CreatedCredential[]>([]);
 
+  useEffect(() => {
+    if (autoPassword && !password) {
+      setPassword(generateClientSimplePassword());
+    }
+    // only initialize/refresh preview for auto mode
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPassword]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
     setError(null);
     setOk(null);
-    if (!autoPassword && password.length < 3) {
+    if (password.trim().length < 3) {
       setPending(false);
-      setError("Podaj hasło albo zaznacz automatyczne hasło.");
+      setError("Hasło startowe musi mieć co najmniej 3 znaki.");
       return;
     }
 
@@ -51,11 +59,11 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         login,
-        password: autoPassword ? undefined : password,
+        password,
         autoGenerateSimplePassword: autoPassword,
         name: name || null,
         email: email || null,
-        role,
+        roles,
         accountActive,
         pzdMemberSince: pzdDate ? new Date(pzdDate).toISOString() : null,
         plotId: plotId || undefined,
@@ -82,11 +90,18 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
     setPassword("");
     setName("");
     setEmail("");
-    setRole(Role.PLOT_HOLDER);
+    setRoles([]);
     setAccountActive(true);
     setPzdDate("");
     setPlotId("");
     router.refresh();
+  }
+
+  function toggleRole(role: Role, checked: boolean) {
+    setRoles((prev) => {
+      if (checked) return Array.from(new Set([...prev, role]));
+      return prev.filter((r) => r !== role);
+    });
   }
 
   function generateClientSimplePassword() {
@@ -127,9 +142,7 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm">
       <h2 className="font-semibold text-emerald-950">Dodaj użytkownika ręcznie</h2>
-      <p className="text-sm text-emerald-900/70">
-        Jeśli nie podasz e-maila, użytkownik będzie musiał go uzupełnić po pierwszym logowaniu.
-      </p>
+      <p className="text-sm text-emerald-900/70">Jeśli nie podasz e-maila, użytkownik będzie musiał go uzupełnić po pierwszym logowaniu.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
@@ -140,13 +153,12 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
         />
         <div className="space-y-2">
           <input
-            type="password"
+            type="text"
             className="w-full rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
-            placeholder={autoPassword ? "Hasło wygeneruje się automatycznie" : "Hasło (proste startowe)"}
+            placeholder="Hasło startowe (proste, do zmiany po logowaniu)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={autoPassword}
-            required={!autoPassword}
+            required
           />
           {autoPassword ? (
             <button
@@ -154,7 +166,7 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
               className="rounded-lg border border-lime-200/80 bg-lime-50 px-2 py-1 text-xs font-medium text-emerald-900 hover:bg-lime-100"
               onClick={() => setPassword(generateClientSimplePassword())}
             >
-              Podejrzyj losowe hasło
+              Wygeneruj proste hasło
             </button>
           ) : null}
         </div>
@@ -171,15 +183,23 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <select
-          className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
-          value={role}
-          onChange={(e) => setRole(e.target.value as Role)}
-        >
-          <option value={Role.PLOT_HOLDER}>Działkowiec</option>
-          <option value={Role.TREASURER}>Skarbnik</option>
-          <option value={Role.ADMIN}>Administrator</option>
-        </select>
+        <fieldset className="rounded-xl border border-lime-200/80 bg-lime-50/40 px-3 py-2 text-sm">
+          <legend className="px-1 text-xs font-semibold text-emerald-900">Uprawnienia specjalne (opcjonalnie)</legend>
+          <div className="mt-1 flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
+              <input
+                type="checkbox"
+                checked={roles.includes(Role.TREASURER)}
+                onChange={(e) => toggleRole(Role.TREASURER, e.target.checked)}
+              />
+              Skarbnik
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
+              <input type="checkbox" checked={roles.includes(Role.ADMIN)} onChange={(e) => toggleRole(Role.ADMIN, e.target.checked)} />
+              Administrator / prezes
+            </label>
+          </div>
+        </fieldset>
         <input
           type="date"
           className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm"
@@ -187,6 +207,9 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
           onChange={(e) => setPzdDate(e.target.value)}
           placeholder="Członek PZD od"
         />
+        <p className="text-xs text-emerald-900/65 sm:col-span-2">
+          Data „Członek PZD od” oznacza początek członkostwa danej osoby w PZD.
+        </p>
         <select
           className="rounded-xl border border-lime-200/80 px-3 py-2 text-sm sm:col-span-2"
           value={plotId}
@@ -203,21 +226,23 @@ export function UserCreateForm({ plotOptions }: { plotOptions: PlotOption[] }) {
         </select>
       </div>
 
-      <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
-        <input type="checkbox" checked={accountActive} onChange={(e) => setAccountActive(e.target.checked)} />
-        Konto aktywne
-      </label>
-      <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
-        <input
-          type="checkbox"
-          checked={autoPassword}
-          onChange={(e) => {
-            setAutoPassword(e.target.checked);
-            if (e.target.checked && !password) setPassword(generateClientSimplePassword());
-          }}
-        />
-        Automatycznie wygeneruj proste hasło startowe (wymagana zmiana po logowaniu)
-      </label>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-lime-200/70 bg-lime-50/40 px-2 text-sm text-emerald-900">
+          <input type="checkbox" checked={accountActive} onChange={(e) => setAccountActive(e.target.checked)} />
+          Konto aktywne
+        </label>
+        <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-lime-200/70 bg-lime-50/40 px-2 text-sm text-emerald-900">
+          <input
+            type="checkbox"
+            checked={autoPassword}
+            onChange={(e) => {
+              setAutoPassword(e.target.checked);
+              if (e.target.checked) setPassword(generateClientSimplePassword());
+            }}
+          />
+          Auto proste hasło (wymagana zmiana po logowaniu)
+        </label>
+      </div>
 
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       {ok ? <p className="text-sm text-emerald-700">{ok}</p> : null}

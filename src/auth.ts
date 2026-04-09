@@ -21,7 +21,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!;
-        token.role = user.role as Role;
+        token.roles = (user.roles as Role[] | undefined) ?? [];
         token.login = user.login ?? null;
         token.mustSetEmailOnLogin = user.mustSetEmailOnLogin ?? false;
         token.mustChangePassword = user.mustChangePassword ?? false;
@@ -31,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (!token.id) return session;
       session.user.id = token.id as string;
-      session.user.role = token.role as Role;
+      session.user.roles = ((token.roles as Role[] | undefined) ?? []) as Role[];
       session.user.login = token.login ?? null;
       session.user.mustSetEmailOnLogin = Boolean(token.mustSetEmailOnLogin);
       session.user.mustChangePassword = Boolean(token.mustChangePassword);
@@ -58,6 +58,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               { email: { equals: trimmed, mode: "insensitive" } },
             ],
           },
+          include: {
+            roles: {
+              select: { role: true },
+            },
+          },
         });
 
         if (!user || !user.accountActive) return null;
@@ -68,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email ?? undefined,
           name: user.name ?? undefined,
-          role: user.role,
+          roles: user.roles.map((r) => r.role),
           login: user.login,
           mustSetEmailOnLogin: user.mustSetEmailOnLogin,
           mustChangePassword: user.mustChangePassword,

@@ -16,21 +16,33 @@ export default async function PanelPage() {
     select: {
       mustSetEmailOnLogin: true,
       mustChangePassword: true,
-      role: true,
       login: true,
       name: true,
+      roles: { select: { role: true } },
+      _count: {
+        select: {
+          plotAssignmentsAsHolder: {
+            where: { unassignedAt: null },
+          },
+        },
+      },
     },
   });
 
   if (!user) redirect("/logowanie");
+
+  const roleList = user.roles.map((r) => r.role);
+  const isAdmin = roleList.includes(Role.ADMIN);
+  const isTreasurer = roleList.includes(Role.TREASURER);
+  const isPlotHolder = user._count.plotAssignmentsAsHolder > 0;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">Panel</h1>
         <p className="mt-1 text-sm text-emerald-950/70">
-          Zalogowano: <span className="font-medium">{user.name ?? user.login ?? session.user.email}</span> · rola:{" "}
-          <span className="font-medium">{roleLabel(user.role)}</span>
+          Zalogowano: <span className="font-medium">{user.name ?? user.login ?? session.user.email}</span> · uprawnienia:{" "}
+          <span className="font-medium">{roleLabel(roleList, isPlotHolder)}</span>
         </p>
       </div>
 
@@ -38,7 +50,7 @@ export default async function PanelPage() {
       {user.mustChangePassword ? <CompletePasswordForm /> : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {!user.mustSetEmailOnLogin && !user.mustChangePassword && (user.role === Role.ADMIN || user.role === Role.TREASURER) && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && (isAdmin || isTreasurer) && (
           <section className="rounded-xl border border-emerald-900/10 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-emerald-950">Skarbnik / zarząd</h2>
             <ul className="mt-3 space-y-2 text-sm">
@@ -51,7 +63,7 @@ export default async function PanelPage() {
           </section>
         )}
 
-        {!user.mustSetEmailOnLogin && !user.mustChangePassword && user.role === Role.ADMIN && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && isAdmin && (
           <section className="rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm shadow-lime-900/5">
             <h2 className="font-semibold text-emerald-950">Administrator</h2>
             <p className="mt-2 text-sm text-emerald-900/75">
@@ -68,7 +80,7 @@ export default async function PanelPage() {
           </section>
         )}
 
-        {!user.mustSetEmailOnLogin && !user.mustChangePassword && user.role === Role.PLOT_HOLDER && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && isPlotHolder && (
           <section className="rounded-xl border border-emerald-900/10 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-emerald-950">Działkowiec</h2>
             <ul className="mt-3 space-y-2 text-sm">
@@ -106,13 +118,11 @@ export default async function PanelPage() {
   );
 }
 
-function roleLabel(role: Role) {
-  switch (role) {
-    case Role.ADMIN:
-      return "Administrator / prezes";
-    case Role.TREASURER:
-      return "Skarbnik";
-    default:
-      return "Działkowiec";
-  }
+function roleLabel(roles: Role[], isPlotHolder: boolean) {
+  const labels: string[] = [];
+  if (roles.includes(Role.ADMIN)) labels.push("Administrator / prezes");
+  if (roles.includes(Role.TREASURER)) labels.push("Skarbnik");
+  if (isPlotHolder) labels.push("Działkowiec");
+  if (labels.length === 0) return "Brak ról specjalnych";
+  return labels.join(", ");
 }

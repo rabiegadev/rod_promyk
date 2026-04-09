@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { PlotsAssignPanel } from "@/components/panel/plots-assign-panel";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
 
 export default async function AdminPlotsPage() {
   const [plots, holders] = await Promise.all([
@@ -16,7 +15,7 @@ export default async function AdminPlotsPage() {
       },
     }),
     prisma.user.findMany({
-      where: { role: Role.PLOT_HOLDER },
+      where: { accountActive: true },
       orderBy: { login: "asc" },
       select: { id: true, login: true, name: true },
     }),

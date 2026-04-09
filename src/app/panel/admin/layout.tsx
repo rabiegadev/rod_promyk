@@ -7,7 +7,7 @@ import { Role } from "@prisma/client";
 export default async function AdminSectionLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/logowanie?callbackUrl=/panel/admin");
-  if (session.user.role !== Role.ADMIN) {
+  if (!(session.user.roles ?? []).includes(Role.ADMIN)) {
     redirect("/panel");
   }
   const user = await prisma.user.findUnique({

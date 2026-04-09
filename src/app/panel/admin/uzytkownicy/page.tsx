@@ -6,15 +6,22 @@ import { prisma } from "@/lib/prisma";
 export default async function AdminUsersPage() {
   const [users, plots] = await Promise.all([
     prisma.user.findMany({
-      orderBy: [{ role: "asc" }, { login: "asc" }],
+      orderBy: [{ login: "asc" }],
       select: {
         id: true,
         login: true,
         email: true,
         name: true,
-        role: true,
+        roles: { select: { role: true } },
         accountActive: true,
         pzdMemberSince: true,
+        _count: {
+          select: {
+            plotAssignmentsAsHolder: {
+              where: { unassignedAt: null },
+            },
+          },
+        },
       },
     }),
     prisma.plot.findMany({
@@ -69,7 +76,13 @@ export default async function AdminUsersPage() {
                   </Link>
                 </td>
                 <td className="px-3 py-2 text-emerald-900/75">{u.email ?? "—"}</td>
-                <td className="px-3 py-2">{u.role}</td>
+                <td className="px-3 py-2">
+                  {[
+                    ...(u.roles.some((r) => r.role === "ADMIN") ? ["ADMIN"] : []),
+                    ...(u.roles.some((r) => r.role === "TREASURER") ? ["TREASURER"] : []),
+                    ...(u._count.plotAssignmentsAsHolder > 0 ? ["DZIAŁKOWIEC"] : []),
+                  ].join(", ") || "—"}
+                </td>
                 <td className="px-3 py-2">{u.accountActive ? "tak" : "nie"}</td>
               </tr>
             ))}

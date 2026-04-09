@@ -12,7 +12,7 @@ const postSchema = z.object({
   password: z.string().min(3).max(200).optional(),
   autoGenerateSimplePassword: z.boolean().optional().default(true),
   name: z.string().max(120).optional().nullable(),
-  role: z.nativeEnum(Role).default(Role.PLOT_HOLDER),
+  roles: z.array(z.nativeEnum(Role)).optional().default([]),
   email: z.union([z.string().email().max(255), z.literal(""), z.null()]).optional(),
   accountActive: z.boolean().optional().default(true),
   pzdMemberSince: z.union([z.coerce.date(), z.null()]).optional(),
@@ -25,13 +25,13 @@ export async function GET() {
   if (!isAdmin(session)) return forbidden();
 
   const users = await prisma.user.findMany({
-    orderBy: [{ role: "asc" }, { login: "asc" }, { email: "asc" }],
+    orderBy: [{ login: "asc" }, { email: "asc" }],
     select: {
       id: true,
       login: true,
       email: true,
       name: true,
-      role: true,
+      roles: { select: { role: true } },
       accountActive: true,
       pzdMemberSince: true,
       mustSetEmailOnLogin: true,
@@ -73,33 +73,44 @@ export async function POST(req: Request) {
     }
   }
 
-  const plainPassword = parsed.data.autoGenerateSimplePassword
-    ? generateSimplePassword()
-    : parsed.data.password;
+  const providedPassword = parsed.data.password?.trim();
+  const plainPassword = providedPassword
+    ? providedPassword
+    : parsed.data.autoGenerateSimplePassword
+      ? generateSimplePassword()
+      : undefined;
   if (!plainPassword) {
     return Response.json({ error: "Podaj hasło lub włącz automatyczne hasło." }, { status: 400 });
   }
 
   const passwordHash = await bcrypt.hash(plainPassword, 12);
   const created = await prisma.$transaction(async (tx) => {
+    const uniqueRoles = Array.from(new Set(parsed.data.roles));
+
     const user = await tx.user.create({
       data: {
         login: parsed.data.login,
         passwordHash,
         name: parsed.data.name ?? null,
-        role: parsed.data.role,
         email: emailNormalized,
         mustSetEmailOnLogin: !emailNormalized,
         mustChangePassword: true,
         accountActive: parsed.data.accountActive,
         pzdMemberSince: parsed.data.pzdMemberSince ?? null,
+        roles: uniqueRoles.length
+          ? {
+              createMany: {
+                data: uniqueRoles.map((role) => ({ role })),
+              },
+            }
+          : undefined,
       },
       select: {
         id: true,
         login: true,
         email: true,
         name: true,
-        role: true,
+        roles: { select: { role: true } },
         accountActive: true,
         mustSetEmailOnLogin: true,
       },

@@ -8,7 +8,7 @@ import { recordUserStatusChange } from "@/lib/user-status";
 
 const patchSchema = z.object({
   name: z.string().min(1).max(120).optional(),
-  role: z.nativeEnum(Role).optional(),
+  roles: z.array(z.nativeEnum(Role)).optional(),
   accountActive: z.boolean().optional(),
   pzdMemberSince: z.union([z.coerce.date(), z.null()]).optional(),
   note: z.string().max(500).optional(),
@@ -56,16 +56,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     where: { id },
     data: {
       ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
-      ...(parsed.data.role !== undefined ? { role: parsed.data.role } : {}),
       ...(parsed.data.accountActive !== undefined ? { accountActive: parsed.data.accountActive } : {}),
       ...(parsed.data.pzdMemberSince !== undefined ? { pzdMemberSince: parsed.data.pzdMemberSince } : {}),
+      ...(parsed.data.roles !== undefined
+        ? {
+            roles: {
+              deleteMany: {},
+              createMany: {
+                data: Array.from(new Set(parsed.data.roles)).map((role) => ({ role })),
+              },
+            },
+          }
+        : {}),
     },
     select: {
       id: true,
       login: true,
       email: true,
       name: true,
-      role: true,
+      roles: { select: { role: true } },
       accountActive: true,
       pzdMemberSince: true,
       mustSetEmailOnLogin: true,
