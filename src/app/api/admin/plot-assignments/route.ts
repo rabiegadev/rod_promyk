@@ -13,6 +13,7 @@ const bodySchema = z.union([
   z.object({
     action: z.literal("release"),
     plotId: z.string().min(1),
+    userId: z.string().min(1).optional(),
   }),
 ]);
 
@@ -36,9 +37,48 @@ export async function POST(req: Request) {
   const now = new Date();
 
   if (parsed.data.action === "release") {
-    await prisma.plotAssignment.updateMany({
-      where: { plotId: parsed.data.plotId, unassignedAt: null },
-      data: { unassignedAt: now },
+    await prisma.$transaction(async (tx) => {
+      const active = await tx.plotAssignment.findMany({
+        where: {
+          plotId: parsed.data.plotId,
+          unassignedAt: null,
+          ...(parsed.data.userId ? { userId: parsed.data.userId } : {}),
+        },
+        include: {
+          plot: { select: { number: true } },
+          user: { select: { id: true, login: true, name: true } },
+        },
+      });
+
+      await tx.plotAssignment.updateMany({
+        where: {
+          plotId: parsed.data.plotId,
+          unassignedAt: null,
+          ...(parsed.data.userId ? { userId: parsed.data.userId } : {}),
+        },
+        data: { unassignedAt: now },
+      });
+
+      for (const row of active) {
+        await tx.userChangeLog.create({
+          data: {
+            userId: row.userId,
+            changedById: session.user.id,
+            action: "Odłączenie od działki",
+            details: `Odłączono od działki ${row.plot.number}.`,
+            plotId: row.plotId,
+          },
+        });
+        await tx.plotChangeLog.create({
+          data: {
+            plotId: row.plotId,
+            changedById: session.user.id,
+            userId: row.userId,
+            action: "Odłączenie działkowca",
+            details: `Odłączono użytkownika ${row.user.name ?? row.user.login ?? row.user.id}.`,
+          },
+        });
+      }
     });
     return Response.json({ ok: true });
   }
@@ -71,13 +111,48 @@ export async function POST(req: Request) {
         throw new Error("ALREADY_ASSIGNED");
       }
 
+      const existingActiveForUser = await tx.plotAssignment.findFirst({
+        where: { userId, unassignedAt: null },
+        select: { id: true, plotId: true },
+      });
+      if (existingActiveForUser && existingActiveForUser.plotId !== plotId) {
+        throw new Error("USER_ALREADY_HAS_PLOT");
+      }
+
       const maxOwners = plot.allowsTwoOwners ? 2 : 1;
       if (activeAssignments.length >= maxOwners) {
         if (!plot.allowsTwoOwners) {
+          const replaced = await tx.plotAssignment.findMany({
+            where: { plotId, unassignedAt: null },
+            include: {
+              plot: { select: { number: true } },
+              user: { select: { id: true, login: true, name: true } },
+            },
+          });
           await tx.plotAssignment.updateMany({
             where: { plotId, unassignedAt: null },
             data: { unassignedAt: now },
           });
+          for (const row of replaced) {
+            await tx.userChangeLog.create({
+              data: {
+                userId: row.userId,
+                changedById: session.user.id,
+                action: "Odłączenie od działki",
+                details: `Odłączono od działki ${row.plot.number} (zastąpienie nowym przypisaniem).`,
+                plotId: row.plotId,
+              },
+            });
+            await tx.plotChangeLog.create({
+              data: {
+                plotId: row.plotId,
+                changedById: session.user.id,
+                userId: row.userId,
+                action: "Odłączenie działkowca",
+                details: `Odłączono użytkownika ${row.user.name ?? row.user.login ?? row.user.id} (zastąpienie).`,
+              },
+            });
+          }
         } else {
           throw new Error("TOO_MANY_OWNERS");
         }
@@ -90,6 +165,30 @@ export async function POST(req: Request) {
           assignedById: session.user.id,
         },
       });
+      const [plotData, userData] = await Promise.all([
+        tx.plot.findUnique({ where: { id: plotId }, select: { number: true } }),
+        tx.user.findUnique({ where: { id: userId }, select: { id: true, login: true, name: true } }),
+      ]);
+      if (plotData && userData) {
+        await tx.userChangeLog.create({
+          data: {
+            userId,
+            changedById: session.user.id,
+            action: "Przypisanie działki",
+            details: `Przypisano do działki ${plotData.number}.`,
+            plotId,
+          },
+        });
+        await tx.plotChangeLog.create({
+          data: {
+            plotId,
+            changedById: session.user.id,
+            userId,
+            action: "Przypisanie działkowca",
+            details: `Przypisano użytkownika ${userData.name ?? userData.login ?? userData.id}.`,
+          },
+        });
+      }
     });
   } catch (e) {
     if (e instanceof Error && e.message === "ALREADY_ASSIGNED") {
@@ -97,6 +196,9 @@ export async function POST(req: Request) {
     }
     if (e instanceof Error && e.message === "TOO_MANY_OWNERS") {
       return Response.json({ error: "Działka ma już maksymalną liczbę aktywnych właścicieli (2)." }, { status: 409 });
+    }
+    if (e instanceof Error && e.message === "USER_ALREADY_HAS_PLOT") {
+      return Response.json({ error: "Ten działkowiec jest już przypisany do innej działki." }, { status: 409 });
     }
     throw e;
   }

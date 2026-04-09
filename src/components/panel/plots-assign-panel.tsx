@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 type PlotRow = {
   id: string;
@@ -18,8 +18,25 @@ type PlotRow = {
 };
 
 type Holder = { id: string; login: string | null; name: string | null };
+type PlotLog = {
+  id: string;
+  plotId: string;
+  action: string;
+  details: string | null;
+  createdAt: Date;
+  userLabel: string | null;
+  changedByLabel: string;
+};
 
-export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders: Holder[] }) {
+export function PlotsAssignPanel({
+  plots,
+  holders,
+  plotLogs,
+}: {
+  plots: PlotRow[];
+  holders: Holder[];
+  plotLogs: PlotLog[];
+}) {
   const router = useRouter();
   const [plotId, setPlotId] = useState(plots[0]?.id ?? "");
   const [userId, setUserId] = useState("");
@@ -53,13 +70,16 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
     router.refresh();
   }
 
-  async function release(pid: string) {
-    if (!confirm("Odłączyć obecnego działkowca od tej działki?")) return;
+  async function release(plotIdToRelease: string, userIdToRelease?: string) {
+    const msg = userIdToRelease
+      ? "Odłączyć wybranego działkowca od tej działki?"
+      : "Odłączyć wszystkich działkowców od tej działki?";
+    if (!confirm(msg)) return;
     setPending(true);
     const res = await fetch("/api/admin/plot-assignments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "release", plotId: pid }),
+      body: JSON.stringify({ action: "release", plotId: plotIdToRelease, userId: userIdToRelease }),
     });
     setPending(false);
     if (res.ok) router.refresh();
@@ -274,36 +294,75 @@ export function PlotsAssignPanel({ plots, holders }: { plots: PlotRow[]; holders
           </thead>
           <tbody>
             {plots.map((p) => {
+              const logs = plotLogs.filter((l) => l.plotId === p.id).slice(0, 6);
               return (
-                <tr key={p.id} className="border-t border-lime-100/90">
-                  <td className="px-3 py-2 font-medium">{p.number}</td>
-                  <td className="px-3 py-2 text-emerald-900/80">
-                    <button
-                      type="button"
-                      disabled={savePending === p.id}
-                      onClick={() => void toggleOwnersMode(p)}
-                      className="rounded-full border border-lime-300 bg-lime-50 px-2 py-1 text-xs font-semibold text-emerald-900 hover:bg-lime-100 disabled:opacity-60"
-                    >
-                      {p.allowsTwoOwners ? "2 właścicieli" : "1 właściciel"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-emerald-900/80">
-                    {p.assignments.length === 0
-                      ? "—"
-                      : p.assignments.map((x) => x.user.name ?? x.user.login ?? x.user.id).join(", ")}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {p.assignments.length > 0 ? (
+                <Fragment key={p.id}>
+                  <tr className="border-t border-lime-100/90">
+                    <td className="px-3 py-2 font-medium">{p.number}</td>
+                    <td className="px-3 py-2 text-emerald-900/80">
                       <button
                         type="button"
-                        onClick={() => void release(p.id)}
-                        className="text-xs font-semibold text-red-700 hover:underline"
+                        disabled={savePending === p.id}
+                        onClick={() => void toggleOwnersMode(p)}
+                        className="rounded-full border border-lime-300 bg-lime-50 px-2 py-1 text-xs font-semibold text-emerald-900 hover:bg-lime-100 disabled:opacity-60"
                       >
-                        Odłącz
+                        {p.allowsTwoOwners ? "2 właścicieli" : "1 właściciel"}
                       </button>
-                    ) : null}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-3 py-2 text-emerald-900/80">
+                      {p.assignments.length === 0 ? (
+                        "—"
+                      ) : (
+                        <div className="space-y-1">
+                          {p.assignments.map((x) => (
+                            <div key={x.id} className="flex items-center justify-between gap-2">
+                              <span>{x.user.name ?? x.user.login ?? x.user.id}</span>
+                              <button
+                                type="button"
+                                onClick={() => void release(p.id, x.user.id)}
+                                className="text-xs font-semibold text-red-700 hover:underline"
+                              >
+                                Odłącz osobę
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {p.assignments.length > 0 ? (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => void release(p.id)}
+                            className="text-xs font-semibold text-red-700 hover:underline"
+                          >
+                            Odłącz wszystkich
+                          </button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-lime-100/50 bg-lime-50/30">
+                    <td colSpan={4} className="px-3 py-2">
+                      <p className="text-xs font-semibold text-emerald-900">Historia działki (ostatnie wpisy)</p>
+                      {logs.length === 0 ? (
+                        <p className="mt-1 text-xs text-emerald-800/70">Brak wpisów historii.</p>
+                      ) : (
+                        <ul className="mt-1 space-y-1 text-xs text-emerald-900/85">
+                          {logs.map((l) => (
+                            <li key={l.id}>
+                              {l.createdAt.toLocaleString("pl-PL")} · {l.action}
+                              {l.userLabel ? ` · użytkownik: ${l.userLabel}` : ""}
+                              {l.details ? ` · ${l.details}` : ""}
+                              {` · autor: ${l.changedByLabel}`}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>

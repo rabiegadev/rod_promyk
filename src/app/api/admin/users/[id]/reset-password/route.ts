@@ -22,12 +22,22 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const generatedPassword = generateSimplePassword();
   const passwordHash = await bcrypt.hash(generatedPassword, 12);
 
-  await prisma.user.update({
-    where: { id },
-    data: {
-      passwordHash,
-      mustChangePassword: true,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        mustChangePassword: true,
+      },
+    });
+    await tx.userChangeLog.create({
+      data: {
+        userId: id,
+        changedById: session.user.id,
+        action: "Reset hasła",
+        details: "Zresetowano hasło startowe (wymagana zmiana po logowaniu).",
+      },
+    });
   });
 
   return Response.json({

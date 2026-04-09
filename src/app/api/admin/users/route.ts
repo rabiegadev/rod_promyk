@@ -116,6 +116,25 @@ export async function POST(req: Request) {
       },
     });
 
+    await tx.userChangeLog.create({
+      data: {
+        userId: user.id,
+        changedById: session.user.id,
+        action: "Utworzenie profilu",
+        details: `Utworzono konto: ${user.login ?? user.email ?? user.id}`,
+      },
+    });
+    await tx.userStatusHistory.create({
+      data: {
+        userId: user.id,
+        changedById: session.user.id,
+        effectiveFrom: new Date(),
+        accountActive: parsed.data.accountActive,
+        pzdMemberSince: parsed.data.pzdMemberSince ?? null,
+        note: "Utworzenie profilu",
+      },
+    });
+
     if (parsed.data.plotId) {
       const plot = await tx.plot.findUnique({
         where: { id: parsed.data.plotId },
@@ -146,6 +165,24 @@ export async function POST(req: Request) {
           plotId: parsed.data.plotId,
           userId: user.id,
           assignedById: session.user.id,
+        },
+      });
+      await tx.userChangeLog.create({
+        data: {
+          userId: user.id,
+          changedById: session.user.id,
+          action: "Przypisanie działki",
+          details: `Przypisano działkę ${plot.number} przy tworzeniu użytkownika.`,
+          plotId: parsed.data.plotId,
+        },
+      });
+      await tx.plotChangeLog.create({
+        data: {
+          plotId: parsed.data.plotId,
+          changedById: session.user.id,
+          action: "Przypisanie działkowca",
+          details: `Przypisano użytkownika ${user.name ?? user.login ?? user.id}.`,
+          userId: user.id,
         },
       });
     }

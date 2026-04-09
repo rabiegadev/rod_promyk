@@ -67,6 +67,10 @@ model User {
 
   formalitiesUpdates Formalities[] @relation("FormalitiesUpdater")
   roles             UserRole[]
+  changeLogs        UserChangeLog[] @relation("UserChangeSubject")
+  changeLogsMade    UserChangeLog[] @relation("UserChangeActor")
+  plotChangeLogsAsSubject PlotChangeLog[] @relation("PlotChangeSubjectUser")
+  plotChangeLogsMade      PlotChangeLog[] @relation("PlotChangeActor")
 }
 
 model UserRole {
@@ -119,6 +123,44 @@ model Plot {
 
   assignments PlotAssignment[]
   feeLines    FeeLine[]
+  changeLogs  PlotChangeLog[]
+  userChangeLogs UserChangeLog[]
+}
+
+model UserChangeLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserChangeSubject", fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  changedById String?
+  changedBy   User? @relation("UserChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+
+  plotId String?
+  plot   Plot? @relation(fields: [plotId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([plotId, createdAt])
+}
+
+model PlotChangeLog {
+  id        String   @id @default(cuid())
+  plotId    String
+  plot      Plot     @relation(fields: [plotId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  changedById String?
+  changedBy   User? @relation("PlotChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User? @relation("PlotChangeSubjectUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([plotId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model PlotAssignment {

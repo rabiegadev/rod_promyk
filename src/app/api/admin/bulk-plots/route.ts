@@ -51,6 +51,14 @@ export async function POST(req: Request) {
         const plot = await tx.plot.create({
           data: { number: plotNumber },
         });
+        await tx.plotChangeLog.create({
+          data: {
+            plotId: plot.id,
+            changedById: session.user.id,
+            action: "Utworzenie działki",
+            details: "Działka utworzona importem zbiorczym.",
+          },
+        });
         createdPlots.push({ id: plot.id, number: plot.number });
 
         if (createUsers) {
@@ -61,7 +69,7 @@ export async function POST(req: Request) {
           }
           const password = generateSimplePassword();
           const passwordHash = await bcrypt.hash(password, 12);
-          await tx.user.create({
+          const user = await tx.user.create({
             data: {
               login,
               passwordHash,
@@ -69,6 +77,24 @@ export async function POST(req: Request) {
               mustChangePassword: true,
               accountActive: true,
               name: `Działkowiec ${plotNumber}`,
+            },
+          });
+          await tx.userChangeLog.create({
+            data: {
+              userId: user.id,
+              changedById: session.user.id,
+              action: "Utworzenie profilu",
+              details: "Konto utworzone podczas importu działek.",
+            },
+          });
+          await tx.userStatusHistory.create({
+            data: {
+              userId: user.id,
+              changedById: session.user.id,
+              effectiveFrom: new Date(),
+              accountActive: true,
+              pzdMemberSince: null,
+              note: "Utworzenie profilu (import działek)",
             },
           });
           createdUsers.push({ login, password, plotNumber });

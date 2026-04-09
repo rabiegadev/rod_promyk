@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     }
     const password = generateSimplePassword();
     const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         login,
         passwordHash,
@@ -48,6 +48,24 @@ export async function POST(req: Request) {
         mustChangePassword: true,
         accountActive: true,
         name: `Działkowiec ${startIndex + i}`,
+      },
+    });
+    await prisma.userChangeLog.create({
+      data: {
+        userId: user.id,
+        changedById: session.user.id,
+        action: "Utworzenie profilu",
+        details: "Konto utworzone importem zbiorczym.",
+      },
+    });
+    await prisma.userStatusHistory.create({
+      data: {
+        userId: user.id,
+        changedById: session.user.id,
+        effectiveFrom: new Date(),
+        accountActive: true,
+        pzdMemberSince: null,
+        note: "Utworzenie profilu (import zbiorczy)",
       },
     });
     created.push({ login, password });

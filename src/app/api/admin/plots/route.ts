@@ -68,8 +68,24 @@ export async function POST(req: Request) {
         purchaseInfo: parsed.data.purchaseInfo ?? null,
       },
     });
+    await tx.plotChangeLog.create({
+      data: {
+        plotId: plot.id,
+        changedById: session.user.id,
+        action: "Utworzenie działki",
+        details: `Utworzono działkę ${plot.number}.`,
+      },
+    });
 
     if (uniqueAssignIds.length > 0) {
+      const alreadyAssigned = await tx.plotAssignment.findMany({
+        where: { userId: { in: uniqueAssignIds }, unassignedAt: null },
+        select: { userId: true },
+      });
+      if (alreadyAssigned.length > 0) {
+        throw new Error("USER_ALREADY_HAS_PLOT");
+      }
+
       const holders = await tx.user.findMany({
         where: { id: { in: uniqueAssignIds }, accountActive: true },
         select: { id: true },
@@ -85,6 +101,28 @@ export async function POST(req: Request) {
             assignedById: session.user.id,
           },
         });
+        const assignedUser = await tx.user.findUnique({
+          where: { id: holder.id },
+          select: { id: true, login: true, name: true },
+        });
+        await tx.plotChangeLog.create({
+          data: {
+            plotId: plot.id,
+            changedById: session.user.id,
+            userId: holder.id,
+            action: "Przypisanie działkowca",
+            details: `Przypisano użytkownika ${assignedUser?.name ?? assignedUser?.login ?? holder.id}.`,
+          },
+        });
+        await tx.userChangeLog.create({
+          data: {
+            userId: holder.id,
+            changedById: session.user.id,
+            plotId: plot.id,
+            action: "Przypisanie działki",
+            details: `Przypisano do działki ${plot.number} podczas tworzenia działki.`,
+          },
+        });
       }
     }
     return plot;
@@ -92,11 +130,17 @@ export async function POST(req: Request) {
     if (e instanceof Error && e.message === "INVALID_USER_SELECTION") {
       return "INVALID_USER_SELECTION" as const;
     }
+    if (e instanceof Error && e.message === "USER_ALREADY_HAS_PLOT") {
+      return "USER_ALREADY_HAS_PLOT" as const;
+    }
     return null;
   });
 
   if (created === "INVALID_USER_SELECTION") {
     return Response.json({ error: "Wybrani użytkownicy muszą istnieć i mieć aktywne konto." }, { status: 400 });
+  }
+  if (created === "USER_ALREADY_HAS_PLOT") {
+    return Response.json({ error: "Co najmniej jeden wybrany działkowiec ma już przypisaną działkę." }, { status: 409 });
   }
   if (!created) {
     return Response.json({ error: "Nie udało się utworzyć działki (sprawdź unikalność numeru)." }, { status: 409 });

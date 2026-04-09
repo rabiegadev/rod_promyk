@@ -23,6 +23,15 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   if (!user) notFound();
 
   const history = await getUserStatusHistory(id);
+  const changeLogs = await prisma.userChangeLog.findMany({
+    where: { userId: id },
+    orderBy: { createdAt: "desc" },
+    include: {
+      changedBy: { select: { name: true, login: true } },
+      plot: { select: { number: true } },
+    },
+    take: 200,
+  });
 
   return (
     <div className="space-y-8">
@@ -34,9 +43,30 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       <UserEditForm user={user} />
 
       <section className="rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm">
-        <h2 className="font-semibold text-emerald-950">Historia statusów</h2>
+        <h2 className="font-semibold text-emerald-950">Historia zmian konta</h2>
+        {changeLogs.length === 0 ? (
+          <p className="mt-2 text-sm text-emerald-900/70">Brak wpisów — każdy etap zmian będzie zapisywany automatycznie.</p>
+        ) : (
+          <ul className="mt-4 space-y-3 text-sm">
+            {changeLogs.map((h) => (
+              <li key={h.id} className="rounded-xl border border-lime-100 bg-lime-50/50 px-3 py-2">
+                <p className="text-xs text-emerald-800/60">{h.createdAt.toLocaleString("pl-PL")}</p>
+                <p className="mt-1 font-semibold text-emerald-950">{h.action}</p>
+                {h.details ? <p className="mt-1 text-emerald-900/85">{h.details}</p> : null}
+                <p className="text-xs text-emerald-800/70">
+                  Autor: {h.changedBy?.name ?? h.changedBy?.login ?? "system"}
+                  {h.plot ? ` · Działka: ${h.plot.number}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm">
+        <h2 className="font-semibold text-emerald-950">Historia statusów (okresy)</h2>
         {history.length === 0 ? (
-          <p className="mt-2 text-sm text-emerald-900/70">Brak wpisów — pojawią się przy pierwszej zmianie statusu lub daty PZD.</p>
+          <p className="mt-2 text-sm text-emerald-900/70">Brak wpisów.</p>
         ) : (
           <ul className="mt-4 space-y-3 text-sm">
             {history.map((h) => (
