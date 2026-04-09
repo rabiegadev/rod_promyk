@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ROD Promyk
 
-## Getting Started
+Aplikacja web dla ROD „Promyk” (Next.js + PostgreSQL + Prisma + NextAuth).
 
-First, run the development server:
+## Szybki start
+
+1. Skopiuj `.env.example` do `.env` i uzupełnij:
+   - `DATABASE_URL`
+   - `AUTH_SECRET`
+   - `AUTH_URL`
+2. Zainstaluj pakiety:
+
+```bash
+npm install
+```
+
+3. Uruchom migracje i seed:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+4. Start:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Skrypty bazy danych
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run db:migrate` – migracje lokalne (tworzenie kolejnych migracji).
+- `npm run db:deploy` – **produkcja/CI**, stosuje gotowe migracje.
+- `npm run db:sync` – awaryjne `db push` (tylko lokalnie, nie do produkcji).
+- `npm run db:seed` – dane startowe.
+- `npm run db:studio` – podgląd danych.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Migracje Prisma (produkcja)
 
-## Learn More
+Repo zawiera migrację startową: `prisma/migrations/202604090001_init`.
 
-To learn more about Next.js, take a look at the following resources:
+W CI / Vercel używaj:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:deploy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Jeśli baza już istnieje i była tworzona bez Prisma Migrate
 
-## Deploy on Vercel
+Po dodaniu migracji należy raz zrobić baseline:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npx prisma migrate resolve --applied 202604090001_init
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Potem standardowo:
+
+```bash
+npm run db:deploy
+```
+
+## Upload galerii (Vercel Blob)
+
+Ustaw zmienną środowiskową:
+
+- `BLOB_READ_WRITE_TOKEN`
+
+Po tym panel admina (`/panel/admin/galeria`) umożliwia wysyłanie plików bezpośrednio do Blob.
+
+## Upload dokumentów (Vercel Blob)
+
+Panel admina (`/panel/admin/dokumenty`) obsługuje:
+
+- upload plików regulaminów/statutu do Blob,
+- publikację samej treści (markdown) bez pliku,
+- usuwanie dokumentu (z próbą usunięcia pliku z Blob).
+
+## Powiadomienia e-mail (Resend)
+
+Opcjonalnie ustaw:
+
+- `RESEND_API_KEY`
+- `RESEND_FROM`
+
+Wtedy nowe wiadomości czatu wysyłają mailowe powiadomienie.
+Szablony e-mail są brandowane (kolory/logotyp/CTA) i gotowe pod dalsze rozszerzenia.

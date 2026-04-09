@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { FeePaidToggle } from "@/components/panel/fee-paid-toggle";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
@@ -32,15 +33,14 @@ export default async function OplatyZarzadPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-emerald-950">Opłaty (skarbnik)</h1>
-        <p className="mt-1 text-sm text-emerald-950/70">
-          Lista pozycji z bazy — zaznaczanie „opłacono”, terminy i naliczanie per działka zostanie uzupełnione w UI (obecnie
-          widok read-only).
+        <p className="mt-1 text-sm text-emerald-900/70">
+          Lista pozycji z bazy — kliknij status, aby oznaczyć opłatę jako opłaconą / do zapłaty.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-emerald-900/10 bg-white shadow-sm">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-emerald-50/80 text-emerald-900">
+      <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-lime-200/80 bg-white/90 shadow-sm [-webkit-overflow-scrolling:touch]">
+        <table className="w-full min-w-[36rem] text-left text-sm md:min-w-0">
+          <thead className="bg-lime-50/80 text-emerald-900">
             <tr>
               <th className="px-3 py-2 font-medium">Pozycja</th>
               <th className="px-3 py-2 font-medium">Działka</th>
@@ -60,7 +60,9 @@ export default async function OplatyZarzadPage() {
                 <td className="px-3 py-2 text-emerald-950/70">
                   {f.dueDate ? f.dueDate.toLocaleDateString("pl-PL") : "—"}
                 </td>
-                <td className="px-3 py-2">{f.isPaid ? "Opłacono" : "Do zapłaty"}</td>
+                <td className="px-3 py-2">
+                  <FeePaidToggle feeId={f.id} isPaid={f.isPaid} />
+                </td>
               </tr>
             ))}
           </tbody>

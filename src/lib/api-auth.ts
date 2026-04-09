@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import type { Session } from "next-auth";
 
 export function forbidden() {
@@ -16,4 +16,8 @@ export function requireSession(session: Session | null): session is Session {
 export function requireRoles(session: Session | null, roles: Role[]) {
   if (!requireSession(session)) return false;
   return roles.includes(session.user.role);
+}
+
+export function isAdmin(session: Session | null) {
+  return requireRoles(session, [Role.ADMIN]);
 }

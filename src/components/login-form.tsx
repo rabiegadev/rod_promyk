@@ -33,7 +33,10 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-md space-y-4 rounded-xl border border-emerald-900/10 bg-white p-6 shadow-sm">
+    <form
+      onSubmit={onSubmit}
+      className="mx-auto max-w-md space-y-4 rounded-2xl border border-lime-200/90 bg-white/90 p-6 shadow-md shadow-lime-900/10"
+    >
       <div>
         <label className="block text-sm font-medium text-emerald-950" htmlFor="loginOrEmail">
           Login lub e-mail
@@ -42,7 +45,7 @@ export function LoginForm() {
           id="loginOrEmail"
           name="loginOrEmail"
           autoComplete="username"
-          className="mt-1 w-full rounded-md border border-emerald-900/20 px-3 py-2 text-emerald-950"
+          className="mt-1 w-full rounded-xl border border-lime-200/80 px-3 py-2 text-emerald-950"
           value={loginOrEmail}
           onChange={(e) => setLoginOrEmail(e.target.value)}
           required
@@ -57,7 +60,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded-md border border-emerald-900/20 px-3 py-2 text-emerald-950"
+          className="mt-1 w-full rounded-xl border border-lime-200/80 px-3 py-2 text-emerald-950"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -67,7 +70,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-emerald-800 px-4 py-2 font-medium text-white hover:bg-emerald-900 disabled:opacity-60"
+        className="w-full rounded-xl bg-emerald-700 px-4 py-2.5 font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-60"
       >
         {pending ? "Logowanie…" : "Zaloguj się"}
       </button>

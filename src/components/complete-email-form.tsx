@@ -28,7 +28,7 @@ export function CompleteEmailForm() {
   }
 
   return (
-    <div className="rounded-lg border border-amber-700/30 bg-amber-50 p-4 text-amber-950">
+    <div className="rounded-2xl border border-amber-200/90 bg-amber-50/90 p-4 text-amber-950 shadow-sm shadow-amber-900/5">
       <h2 className="font-semibold">Uzupełnij adres e-mail</h2>
       <p className="mt-1 text-sm text-amber-900/80">
         Przy pierwszym logowaniu prosimy o podanie działającego e-maila (powiadomienia, kontakt z zarządem).

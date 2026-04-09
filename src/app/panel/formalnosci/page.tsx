@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default async function FormalnosciPage() {
   const session = await auth();
@@ -53,9 +55,9 @@ export default async function FormalnosciPage() {
         </div>
       </dl>
       {f?.extraMarkdown ? (
-        <div className="mt-8 whitespace-pre-wrap rounded-lg border border-emerald-900/10 bg-white p-4 text-sm">
-          {f.extraMarkdown}
-        </div>
+        <article className="prose prose-sm mt-8 max-w-none rounded-lg border border-emerald-900/10 bg-white p-4 prose-headings:text-emerald-950 prose-p:text-emerald-950 prose-li:text-emerald-950">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{f.extraMarkdown}</ReactMarkdown>
+        </article>
       ) : null}
     </div>
   );

@@ -1,4 +1,6 @@
 import { DocumentKind } from "@prisma/client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { prisma } from "@/lib/prisma";
 
@@ -23,7 +25,11 @@ export default async function RegulaminyPage() {
                   Pobierz plik
                 </a>
               ) : null}
-              {d.content ? <p className="mt-3 whitespace-pre-wrap text-sm text-emerald-950/85">{d.content}</p> : null}
+              {d.content ? (
+                <article className="prose prose-sm mt-3 max-w-none prose-headings:text-emerald-950 prose-p:text-emerald-950 prose-li:text-emerald-950">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{d.content}</ReactMarkdown>
+                </article>
+              ) : null}
             </li>
           ))}
         </ul>

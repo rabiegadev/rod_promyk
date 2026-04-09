@@ -11,7 +11,7 @@ export default async function LoginPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-emerald-950">Logowanie</h1>
+        <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">Logowanie</h1>
         <p className="mt-1 text-sm text-emerald-950/70">
           Działkowcy i członkowie zarządu logują się loginem lub adresem e-mail.
         </p>

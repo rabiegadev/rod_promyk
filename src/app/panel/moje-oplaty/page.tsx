@@ -41,7 +41,7 @@ export default async function MojeOplatyPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-emerald-950">Moje opłaty</h1>
+        <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">Moje opłaty</h1>
         <p className="mt-1 text-sm text-emerald-950/70">Podsumowanie składek przypisanych do Twojej działki i do Ciebie jako członka.</p>
       </div>
 
@@ -88,8 +88,8 @@ function FeeTable({
       {fees.length === 0 ? (
         <p className="mt-2 text-sm text-emerald-950/70">{empty}</p>
       ) : (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-emerald-900/10 bg-white shadow-sm">
-          <table className="min-w-full text-left text-sm">
+        <div className="mt-3 overflow-x-auto overscroll-x-contain rounded-lg border border-emerald-900/10 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
+          <table className="w-full min-w-[36rem] text-left text-sm md:min-w-0">
             <thead className="bg-emerald-50/80 text-emerald-900">
               <tr>
                 <th className="px-3 py-2 font-medium">Pozycja</th>

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default async function OgloszeniaPage() {
   const list = await prisma.announcement.findMany({
@@ -20,7 +22,9 @@ export default async function OgloszeniaPage() {
                 {a.publishedAt.toLocaleString("pl-PL")}
                 {a.author ? ` · ${a.author.name ?? a.author.login}` : ""}
               </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm text-emerald-950/85">{a.body}</p>
+              <article className="prose prose-sm mt-3 max-w-none prose-headings:text-emerald-950 prose-p:text-emerald-950 prose-li:text-emerald-950">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{a.body}</ReactMarkdown>
+              </article>
             </li>
           ))}
         </ul>
