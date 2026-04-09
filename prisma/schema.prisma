@@ -41,6 +41,8 @@ model User {
   role                Role      @default(PLOT_HOLDER)
   /// Po imporcie konta: wymuś podanie e-maila przy pierwszym logowaniu
   mustSetEmailOnLogin Boolean   @default(false)
+  /// Wymuś zmianę hasła po pierwszym logowaniu (np. przy prostym haśle startowym)
+  mustChangePassword  Boolean   @default(false)
 
   accountActive  Boolean   @default(true)
   pzdMemberSince DateTime?
@@ -95,6 +97,8 @@ model Plot {
   number      String  @unique
   areaSqm     Float?
   description String?
+  /// Gdy true: działka może mieć jednocześnie dwoje właścicieli (np. współmałżonkowie)
+  allowsTwoOwners Boolean @default(false)
 
   availableForPurchase Boolean @default(false)
   purchaseInfo         String?

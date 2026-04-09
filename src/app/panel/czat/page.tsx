@@ -3,11 +3,18 @@ import { redirect } from "next/navigation";
 
 import { PlotHolderChatView } from "@/components/panel/chat-thread-view";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
 export default async function CzatPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/logowanie");
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { mustSetEmailOnLogin: true, mustChangePassword: true },
+  });
+  if (dbUser?.mustSetEmailOnLogin || dbUser?.mustChangePassword) redirect("/panel");
 
   if (session.user.role !== Role.PLOT_HOLDER) {
     return (

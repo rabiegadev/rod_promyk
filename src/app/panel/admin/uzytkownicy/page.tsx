@@ -1,20 +1,45 @@
 import Link from "next/link";
 
+import { UserCreateForm } from "@/components/panel/user-create-form";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminUsersPage() {
-  const users = await prisma.user.findMany({
-    orderBy: [{ role: "asc" }, { login: "asc" }],
-    select: {
-      id: true,
-      login: true,
-      email: true,
-      name: true,
-      role: true,
-      accountActive: true,
-      pzdMemberSince: true,
-    },
-  });
+  const [users, plots] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: [{ role: "asc" }, { login: "asc" }],
+      select: {
+        id: true,
+        login: true,
+        email: true,
+        name: true,
+        role: true,
+        accountActive: true,
+        pzdMemberSince: true,
+      },
+    }),
+    prisma.plot.findMany({
+      orderBy: { number: "asc" },
+      include: {
+        assignments: {
+          where: { unassignedAt: null },
+          include: { user: { select: { name: true, login: true } } },
+        },
+      },
+    }),
+  ]);
+
+  const plotOptions = plots
+    .filter((p) => p.assignments.length === 0 || (p.assignments.length === 1 && p.allowsTwoOwners))
+    .map((p) => ({
+      id: p.id,
+      number: p.number,
+      allowsTwoOwners: p.allowsTwoOwners,
+      activeAssignments: p.assignments.length,
+      assignedTo:
+        p.assignments[0]?.user.name ??
+        p.assignments[0]?.user.login ??
+        null,
+    }));
 
   return (
     <div className="space-y-6">
@@ -22,6 +47,8 @@ export default async function AdminUsersPage() {
         <h1 className="text-xl font-bold text-emerald-950 sm:text-2xl">Użytkownicy</h1>
         <p className="mt-1 text-sm text-emerald-900/70">Kliknij wiersz, aby edytować konto i zobaczyć historię statusów.</p>
       </div>
+
+      <UserCreateForm plotOptions={plotOptions} />
 
       <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-lime-200/80 bg-white/90 shadow-sm [-webkit-overflow-scrolling:touch]">
         <table className="w-full min-w-[36rem] text-left text-sm md:min-w-0">

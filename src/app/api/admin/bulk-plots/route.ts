@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { forbidden, requireRoles, unauthorized } from "@/lib/api-auth";
-import { generatePassword } from "@/lib/password";
+import { generateSimplePassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
@@ -60,13 +60,14 @@ export async function POST(req: Request) {
           if (loginTaken) {
             throw new Error(`LOGIN_DUP:${login}`);
           }
-          const password = generatePassword(14);
+          const password = generateSimplePassword();
           const passwordHash = await bcrypt.hash(password, 12);
           await tx.user.create({
             data: {
               login,
               passwordHash,
               mustSetEmailOnLogin: true,
+              mustChangePassword: true,
               role: Role.PLOT_HOLDER,
               accountActive: true,
               name: `Działkowiec ${plotNumber}`,

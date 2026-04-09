@@ -11,8 +11,9 @@ export default async function MojeOplatyPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true },
+    select: { role: true, mustSetEmailOnLogin: true, mustChangePassword: true },
   });
+  if (user?.mustSetEmailOnLogin || user?.mustChangePassword) redirect("/panel");
 
   if (user?.role !== Role.PLOT_HOLDER) {
     return <p className="text-emerald-950/80">Ta strona jest przeznaczona dla działkowców.</p>;

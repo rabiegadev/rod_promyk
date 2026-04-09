@@ -45,19 +45,54 @@ export async function POST(req: Request) {
 
   const { plotId, userId } = parsed.data;
 
-  await prisma.$transaction([
-    prisma.plotAssignment.updateMany({
-      where: { plotId, unassignedAt: null },
-      data: { unassignedAt: now },
-    }),
-    prisma.plotAssignment.create({
-      data: {
-        plotId,
-        userId,
-        assignedById: session.user.id,
-      },
-    }),
-  ]);
+  const plot = await prisma.plot.findUnique({
+    where: { id: plotId },
+    select: { allowsTwoOwners: true },
+  });
+  if (!plot) {
+    return Response.json({ error: "Nie znaleziono działki." }, { status: 404 });
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const activeAssignments = await tx.plotAssignment.findMany({
+        where: { plotId, unassignedAt: null },
+        select: { id: true, userId: true },
+      });
+
+      if (activeAssignments.some((a) => a.userId === userId)) {
+        throw new Error("ALREADY_ASSIGNED");
+      }
+
+      const maxOwners = plot.allowsTwoOwners ? 2 : 1;
+      if (activeAssignments.length >= maxOwners) {
+        if (!plot.allowsTwoOwners) {
+          await tx.plotAssignment.updateMany({
+            where: { plotId, unassignedAt: null },
+            data: { unassignedAt: now },
+          });
+        } else {
+          throw new Error("TOO_MANY_OWNERS");
+        }
+      }
+
+      await tx.plotAssignment.create({
+        data: {
+          plotId,
+          userId,
+          assignedById: session.user.id,
+        },
+      });
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "ALREADY_ASSIGNED") {
+      return Response.json({ error: "Ten użytkownik jest już przypisany do tej działki." }, { status: 409 });
+    }
+    if (e instanceof Error && e.message === "TOO_MANY_OWNERS") {
+      return Response.json({ error: "Działka ma już maksymalną liczbę aktywnych właścicieli (2)." }, { status: 409 });
+    }
+    throw e;
+  }
 
   return Response.json({ ok: true });
 }

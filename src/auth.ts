@@ -24,6 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role as Role;
         token.login = user.login ?? null;
         token.mustSetEmailOnLogin = user.mustSetEmailOnLogin ?? false;
+        token.mustChangePassword = user.mustChangePassword ?? false;
       }
       return token;
     },
@@ -33,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role as Role;
       session.user.login = token.login ?? null;
       session.user.mustSetEmailOnLogin = Boolean(token.mustSetEmailOnLogin);
+      session.user.mustChangePassword = Boolean(token.mustChangePassword);
       return session;
     },
   },
@@ -69,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           login: user.login,
           mustSetEmailOnLogin: user.mustSetEmailOnLogin,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),

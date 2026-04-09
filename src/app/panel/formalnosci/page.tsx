@@ -12,8 +12,9 @@ export default async function FormalnosciPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true },
+    select: { role: true, mustSetEmailOnLogin: true, mustChangePassword: true },
   });
+  if (user?.mustSetEmailOnLogin || user?.mustChangePassword) redirect("/panel");
 
   const allowed = user?.role === Role.PLOT_HOLDER || user?.role === Role.ADMIN;
   if (!allowed) {

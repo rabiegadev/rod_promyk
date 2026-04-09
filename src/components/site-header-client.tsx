@@ -4,6 +4,7 @@ import { ChevronDown, ImageIcon, Leaf, Menu, Sprout, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { LogoutButton } from "@/components/logout-button";
 
 const primaryNav = [
   { href: "/szkolenia", label: "Szkolenia", icon: null },
@@ -166,12 +167,15 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
           </div>
         </div>
         {isLoggedIn ? (
-          <Link
-            href="/panel"
-            className="ml-1 inline-flex min-h-10 items-center gap-1 rounded-full bg-amber-100/90 px-3 py-1.5 text-amber-950 ring-1 ring-amber-300/60 hover:bg-amber-200/90"
-          >
-            Panel
-          </Link>
+          <div className="ml-1 inline-flex items-center gap-2">
+            <Link
+              href="/panel"
+              className="inline-flex min-h-10 items-center gap-1 rounded-full bg-amber-100/90 px-3 py-1.5 text-amber-950 ring-1 ring-amber-300/60 hover:bg-amber-200/90"
+            >
+              Panel
+            </Link>
+            <LogoutButton className="inline-flex min-h-10 items-center gap-1 rounded-full border border-lime-200/90 bg-white px-3 py-1.5 text-emerald-900 hover:bg-lime-50" />
+          </div>
         ) : (
           <Link
             href="/logowanie"
@@ -184,12 +188,15 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
 
       <div className="flex items-center gap-2 lg:hidden">
         {isLoggedIn ? (
-          <Link
-            href="/panel"
-            className="inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-full bg-amber-100/90 px-3 text-sm font-semibold text-amber-950 ring-1 ring-amber-300/60"
-          >
-            Panel
-          </Link>
+          <div className="inline-flex items-center gap-2">
+            <Link
+              href="/panel"
+              className="inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-full bg-amber-100/90 px-3 text-sm font-semibold text-amber-950 ring-1 ring-amber-300/60"
+            >
+              Panel
+            </Link>
+            <LogoutButton className="inline-flex min-h-11 items-center justify-center rounded-full border border-lime-200/90 bg-white px-3 text-sm font-semibold text-emerald-900 ring-1 ring-lime-100/70" />
+          </div>
         ) : null}
         <button
           type="button"
@@ -292,9 +299,14 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
               ) : null}
               <div className="mt-auto border-t border-lime-200/80 pt-3">
                 {isLoggedIn ? (
-                  <Link href="/panel" className={`${panelLinkClass} font-semibold text-amber-950`} onClick={() => setOpen(false)}>
-                    Przejdź do panelu
-                  </Link>
+                  <div className="space-y-2">
+                    <Link href="/panel" className={`${panelLinkClass} font-semibold text-amber-950`} onClick={() => setOpen(false)}>
+                      Przejdź do panelu
+                    </Link>
+                    <LogoutButton
+                      className={`${panelLinkClass} w-full border border-lime-200/90 bg-white text-emerald-900`}
+                    />
+                  </div>
                 ) : (
                   <Link href="/logowanie" className={`${panelLinkClass} font-semibold text-amber-950`} onClick={() => setOpen(false)}>
                     Logowanie

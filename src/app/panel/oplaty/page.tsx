@@ -9,6 +9,11 @@ import { Role } from "@prisma/client";
 export default async function OplatyZarzadPage() {
   const session = await auth();
   if (!session?.user) redirect("/logowanie");
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { mustSetEmailOnLogin: true, mustChangePassword: true },
+  });
+  if (dbUser?.mustSetEmailOnLogin || dbUser?.mustChangePassword) redirect("/panel");
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.TREASURER) {
     return (
       <p className="text-emerald-950/80">

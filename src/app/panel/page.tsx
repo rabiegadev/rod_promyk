@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { CompletePasswordForm } from "@/components/complete-password-form";
 import { CompleteEmailForm } from "@/components/complete-email-form";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,7 @@ export default async function PanelPage() {
     where: { id: session.user.id },
     select: {
       mustSetEmailOnLogin: true,
+      mustChangePassword: true,
       role: true,
       login: true,
       name: true,
@@ -33,9 +35,10 @@ export default async function PanelPage() {
       </div>
 
       {user.mustSetEmailOnLogin ? <CompleteEmailForm /> : null}
+      {user.mustChangePassword ? <CompletePasswordForm /> : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {(user.role === Role.ADMIN || user.role === Role.TREASURER) && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && (user.role === Role.ADMIN || user.role === Role.TREASURER) && (
           <section className="rounded-xl border border-emerald-900/10 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-emerald-950">Skarbnik / zarząd</h2>
             <ul className="mt-3 space-y-2 text-sm">
@@ -48,7 +51,7 @@ export default async function PanelPage() {
           </section>
         )}
 
-        {user.role === Role.ADMIN && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && user.role === Role.ADMIN && (
           <section className="rounded-2xl border border-lime-200/90 bg-white/90 p-5 shadow-sm shadow-lime-900/5">
             <h2 className="font-semibold text-emerald-950">Administrator</h2>
             <p className="mt-2 text-sm text-emerald-900/75">
@@ -65,7 +68,7 @@ export default async function PanelPage() {
           </section>
         )}
 
-        {user.role === Role.PLOT_HOLDER && (
+        {!user.mustSetEmailOnLogin && !user.mustChangePassword && user.role === Role.PLOT_HOLDER && (
           <section className="rounded-xl border border-emerald-900/10 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-emerald-950">Działkowiec</h2>
             <ul className="mt-3 space-y-2 text-sm">
