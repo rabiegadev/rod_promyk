@@ -1,21 +1,24 @@
 "use client";
 
-import { CalendarHeart, ImageIcon, Leaf, Menu, Sprout, X } from "lucide-react";
+import { ChevronDown, ImageIcon, Leaf, Menu, Sprout, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
-const nav = [
-  { href: "/", label: "Strona główna", icon: Leaf },
-  { href: "/ogloszenia", label: "Ogłoszenia", icon: null as null },
+const primaryNav = [
+  { href: "/szkolenia", label: "Szkolenia", icon: null },
+  { href: "/galeria", label: "Galeria", icon: ImageIcon },
+  { href: "/kontakt", label: "Kontakt", icon: null },
+];
+
+const gardenMenu = [
   { href: "/o-ogrodzie", label: "O ogrodzie", icon: Sprout },
-  { href: "/imprezy", label: "Imprezy", icon: CalendarHeart },
+  { href: "/ogloszenia", label: "Ogłoszenia", icon: null },
+  { href: "/imprezy", label: "Imprezy", icon: null },
   { href: "/osiagniecia", label: "Osiągnięcia", icon: null },
   { href: "/regulaminy", label: "Regulaminy", icon: null },
   { href: "/statut", label: "Statut", icon: null },
-  { href: "/szkolenia", label: "Szkolenia", icon: null },
   { href: "/dzialki-na-sprzedaz", label: "Działki na sprzedaż", icon: null },
-  { href: "/galeria", label: "Galeria", icon: ImageIcon },
-  { href: "/kontakt", label: "Kontakt", icon: null },
 ];
 
 type Props = {
@@ -23,7 +26,11 @@ type Props = {
 };
 
 export function SiteHeaderClient({ isLoggedIn }: Props) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobileGardenOpen, setMobileGardenOpen] = useState(false);
+  const [desktopGardenOpen, setDesktopGardenOpen] = useState(false);
+  const gardenCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -36,11 +43,47 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
 
   useEffect(() => {
     const onResize = () => {
-      if (window.matchMedia("(min-width: 1024px)").matches) setOpen(false);
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        setOpen(false);
+        setMobileGardenOpen(false);
+      }
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (gardenCloseTimer.current) clearTimeout(gardenCloseTimer.current);
+    };
+  }, []);
+
+  function isActive(href: string) {
+    if (!pathname) return false;
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function clearGardenCloseTimer() {
+    if (gardenCloseTimer.current) {
+      clearTimeout(gardenCloseTimer.current);
+      gardenCloseTimer.current = null;
+    }
+  }
+
+  function openGardenDesktop() {
+    clearGardenCloseTimer();
+    setDesktopGardenOpen(true);
+  }
+
+  function scheduleGardenDesktopClose() {
+    clearGardenCloseTimer();
+    gardenCloseTimer.current = setTimeout(() => {
+      setDesktopGardenOpen(false);
+    }, 220);
+  }
+
+  const gardenSectionActive = gardenMenu.some((item) => isActive(item.href));
 
   const panelLinkClass =
     "flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 text-base font-medium text-emerald-900 active:bg-lime-100/90";
@@ -51,19 +94,77 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
         className="hidden flex-wrap items-center justify-end gap-x-2 gap-y-2 text-sm font-medium text-emerald-900/85 lg:flex"
         aria-label="Główna nawigacja"
       >
-        {nav.map((item) => {
+        <Link
+          href="/"
+          className={`inline-flex min-h-10 min-w-[2.5rem] items-center gap-1 rounded-full px-2 py-1.5 transition hover:bg-lime-100/80 hover:text-emerald-900 ${
+            isActive("/") ? "bg-lime-100/90 text-emerald-950" : ""
+          }`}
+        >
+          <Leaf className="h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />
+          Strona główna
+        </Link>
+        {primaryNav.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="inline-flex min-h-10 min-w-[2.5rem] items-center gap-1 rounded-full px-2 py-1.5 transition hover:bg-lime-100/80 hover:text-emerald-900"
+              className={`inline-flex min-h-10 min-w-[2.5rem] items-center gap-1 rounded-full px-2 py-1.5 transition hover:bg-lime-100/80 hover:text-emerald-900 ${
+                isActive(item.href) ? "bg-lime-100/90 text-emerald-950" : ""
+              }`}
             >
               {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden /> : null}
               {item.label}
             </Link>
           );
         })}
+        <div
+          className="relative"
+          onMouseEnter={openGardenDesktop}
+          onMouseLeave={scheduleGardenDesktopClose}
+        >
+          <button
+            type="button"
+            className={`inline-flex min-h-10 min-w-[2.5rem] items-center gap-1 rounded-full px-2 py-1.5 transition hover:bg-lime-100/80 hover:text-emerald-900 ${
+              gardenSectionActive ? "bg-lime-100/90 text-emerald-950" : ""
+            }`}
+            aria-haspopup="menu"
+            aria-expanded={desktopGardenOpen}
+            aria-label="Otwórz menu O ogrodzie"
+            onFocus={openGardenDesktop}
+            onBlur={scheduleGardenDesktopClose}
+          >
+            <Sprout className="h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />
+            O ogrodzie
+            <ChevronDown
+              className={`h-3.5 w-3.5 text-emerald-700/80 transition ${desktopGardenOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          </button>
+          <div
+            className={`absolute right-0 z-30 mt-1 w-60 rounded-2xl border border-lime-200/90 bg-white/95 p-2 shadow-lg transition ${
+              desktopGardenOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            onMouseEnter={openGardenDesktop}
+            onMouseLeave={scheduleGardenDesktopClose}
+          >
+            <ul className="space-y-1">
+              {gardenMenu.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`block rounded-xl px-3 py-2 text-sm hover:bg-lime-100/80 ${
+                      isActive(item.href) ? "bg-lime-100/90 font-semibold text-emerald-950" : "text-emerald-900"
+                    }`}
+                    onClick={() => setDesktopGardenOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
         {isLoggedIn ? (
           <Link
             href="/panel"
@@ -127,13 +228,21 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
               </button>
             </div>
             <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 py-3" aria-label="Nawigacja mobilna">
-              {nav.map((item) => {
+              <Link
+                href="/"
+                className={`${panelLinkClass} ${isActive("/") ? "bg-lime-100/90 font-semibold text-emerald-950" : ""}`}
+                onClick={() => setOpen(false)}
+              >
+                <Leaf className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />
+                Strona główna
+              </Link>
+              {primaryNav.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={panelLinkClass}
+                    className={`${panelLinkClass} ${isActive(item.href) ? "bg-lime-100/90 font-semibold text-emerald-950" : ""}`}
                     onClick={() => setOpen(false)}
                   >
                     {Icon ? (
@@ -145,6 +254,42 @@ export function SiteHeaderClient({ isLoggedIn }: Props) {
                   </Link>
                 );
               })}
+              <button
+                type="button"
+                className={`${panelLinkClass} justify-between`}
+                onClick={() => setMobileGardenOpen((v) => !v)}
+                aria-expanded={mobileGardenOpen}
+                aria-controls="mobile-garden-submenu"
+              >
+                <span className="inline-flex items-center gap-3">
+                  <Sprout className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />
+                  O ogrodzie
+                </span>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-emerald-700 transition ${mobileGardenOpen ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </button>
+              {mobileGardenOpen ? (
+                <ul id="mobile-garden-submenu" className="mb-2 ml-8 space-y-1 rounded-xl border border-lime-200/80 bg-lime-50/50 p-2">
+                  {gardenMenu.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium active:bg-lime-100/90 ${
+                          isActive(item.href) ? "bg-lime-100/90 text-emerald-950" : "text-emerald-900"
+                        }`}
+                        onClick={() => {
+                          setOpen(false);
+                          setMobileGardenOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <div className="mt-auto border-t border-lime-200/80 pt-3">
                 {isLoggedIn ? (
                   <Link href="/panel" className={`${panelLinkClass} font-semibold text-amber-950`} onClick={() => setOpen(false)}>
